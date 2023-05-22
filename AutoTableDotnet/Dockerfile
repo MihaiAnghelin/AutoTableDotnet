@@ -1,20 +1,16 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS base
+﻿FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build-env
 WORKDIR /app
+
+# Copy everything
+COPY . ./
+# Restore as distinct layers
+RUN dotnet restore
+# Build and publish a release
+RUN dotnet publish -c Release -o out
+
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:7.0
+WORKDIR /app
+COPY --from=build-env /app/out .
 EXPOSE 80
-EXPOSE 443
-
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
-WORKDIR /src
-COPY ["AutoTableDotnet/AutoTableDotnet.csproj", "AutoTableDotnet/"]
-RUN dotnet restore "AutoTableDotnet/AutoTableDotnet.csproj"
-COPY . .
-WORKDIR "/src/AutoTableDotnet"
-RUN dotnet build "AutoTableDotnet.csproj" -c Release -o /app/build
-
-FROM build AS publish
-RUN dotnet publish "AutoTableDotnet.csproj" -c Release -o /app/publish /p:UseAppHost=false
-
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "AutoTableDotnet.dll"]
